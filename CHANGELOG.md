@@ -2,6 +2,27 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-09-12
+
+### Changed
+- StigForge export refresh for `cs9_cis` at `0.3.0`.
+
+### Verified (OpenSCAP)
+
+- **`cis-l1`** — score **96.0%** (floor 90.0%) · gate **PASS** · evidence `20260912T125303Z`
+  - Remaining counted failures: `accounts_password_pam_modules_in_authselect_profile, file_permissions_ungroupowned, use_pam_wheel_group_for_su`
+- **`cis-l2`** — score **96.1%** (floor 90.0%) · gate **PASS** · evidence `20260912T125551Z`
+  - Remaining counted failures: `accounts_password_pam_modules_in_authselect_profile, file_permissions_ungroupowned, use_pam_wheel_group_for_su`
+- **`cis-ws-l1`** — score **96.0%** (floor 90.0%) · gate **PASS** · evidence `20260912T125730Z`
+  - Remaining counted failures: `accounts_password_pam_modules_in_authselect_profile, file_permissions_ungroupowned, use_pam_wheel_group_for_su`
+- **`cis-ws-l2`** — score **96.05%** (floor 90.0%) · gate **PASS** · evidence `20260912T125950Z`
+  - Remaining counted failures: `accounts_password_pam_modules_in_authselect_profile, file_permissions_ungroupowned, use_pam_wheel_group_for_su`
+
+### Provenance
+
+- Factory pipeline: https://github.com/stigready/stigforge/actions/runs/34693316989
+- Factory commit: `562a1f7c1a8e19235ee26e972174d1be6c88998c`
+
 ## [0.2.4] - 2026-07-31
 
 ### Added
