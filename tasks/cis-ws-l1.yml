@@ -262,6 +262,8 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Ensure systemd-journal-remote is installed'' raised an error (module or templating) and was skipped;
         continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_package_systemd_journal_remote_installed | default(true)
+    | bool)
 - name: 'StigForge: refresh package facts after ''Ensure systemd-journal-remote is installed'' installed a package'
   ansible.builtin.package_facts:
     manager: auto
@@ -624,6 +626,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Uninstall cyrus-imapd Package: Ensure cyrus-imapd is removed'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_package_cyrus_imapd_removed | default(true) | bool)
 - block:
   - name: 'Uninstall dovecot Package: Ensure dovecot is removed'
     ansible.builtin.package:
@@ -718,6 +721,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Uninstall telnet-server Package: Ensure telnet-server is removed'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_package_telnet_server_removed | default(true) | bool)
 - block:
   - name: 'Remove telnet Clients: Ensure telnet is removed'
     ansible.builtin.package:
@@ -763,6 +767,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Uninstall tftp-server Package: Ensure tftp-server is removed'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_package_tftp_server_removed | default(true) | bool)
 - block:
   - name: 'Remove tftp Daemon: Ensure tftp is removed'
     ansible.builtin.package:
@@ -841,6 +846,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Uninstall net-snmp Package: Ensure net-snmp is removed'' raised an error (module or templating) and
         was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_package_net_snmp_removed | default(true) | bool)
 - block:
   - name: Enable systemd-journald Service - Enable service systemd-journald
     block:
@@ -869,7 +875,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Enable systemd-journald Service - Enable service systemd-journald'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
-  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_special_service_block | default(true) | bool)
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_service_systemd_journald_enabled | default(true) | bool)
 - block:
   - name: Verify nftables Service is Disabled - Disable service nftables
     block:
@@ -1084,7 +1090,7 @@
     ansible.builtin.debug:
       msg: 'StigForge: ''Disable Network File System (nfs) - Disable service nfs-server'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
-  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_special_service_block | default(true) | bool)
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_service_nfs_disabled | default(true) | bool)
 - block:
   - name: Build and Test AIDE Database - Check Whether the Stock AIDE Database Exists
     ansible.builtin.stat:
@@ -2202,6 +2208,156 @@
       msg: 'StigForge: ''Remove lines containing !authenticate from sudoers files'' raised an error (module or templating)
         and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
   when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_remove_no_authenticate | default(true) | bool)
+- block:
+  - name: Require Re-Authentication When Using the sudo Command - Find /etc/sudoers.d/* files containing 'Defaults timestamp_timeout'
+    ansible.builtin.find:
+      path: /etc/sudoers.d
+      patterns: '*'
+      contains: ^[\s]*Defaults\s.*\btimestamp_timeout[\s]*=.*
+    register: sudoers_d_defaults_timestamp_timeout
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"sudo" in ansible_facts.packages'
+    tags:
+    - DISA-STIG-RHEL-09-432015
+    - NIST-800-53-IA-11
+    - PCI-DSSv4-2.2
+    - PCI-DSSv4-2.2.6
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+    - sudo_require_reauthentication
+  rescue:
+  - name: 'StigForge: continue after error in "Require Re-Authentication When Using the sudo Command - Find /etc/sudoers.d/*
+      files containing ''Defaults timestamp_timeout''" (OpenSCAP is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: "Require Re-Authentication When Using the sudo Command - Find /etc/sudoers.d/* files containing ''Defaults
+        timestamp_timeout''" raised an error (module or templating) and was skipped; continuing so later rules still run.
+        OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_require_reauthentication | default(true) | bool)
+- block:
+  - name: Require Re-Authentication When Using the sudo Command - Remove 'Defaults timestamp_timeout' from /etc/sudoers.d/*
+      files
+    ansible.builtin.lineinfile:
+      path: '{{ item.path }}'
+      regexp: ^[\s]*Defaults\s.*\btimestamp_timeout[\s]*=.*
+      state: absent
+    with_items: '{{ sudoers_d_defaults_timestamp_timeout.files }}'
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"sudo" in ansible_facts.packages'
+    tags:
+    - DISA-STIG-RHEL-09-432015
+    - NIST-800-53-IA-11
+    - PCI-DSSv4-2.2
+    - PCI-DSSv4-2.2.6
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+    - sudo_require_reauthentication
+  rescue:
+  - name: 'StigForge: continue after error in "Require Re-Authentication When Using the sudo Command - Remove ''Defaults timestamp_timeout''
+      from /etc/sudoers.d/* files" (OpenSCAP is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: "Require Re-Authentication When Using the sudo Command - Remove ''Defaults timestamp_timeout'' from
+        /etc/sudoers.d/* files" raised an error (module or templating) and was skipped; continuing so later rules still run.
+        OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_require_reauthentication | default(true) | bool)
+- block:
+  - name: Require Re-Authentication When Using the sudo Command - Ensure timestamp_timeout has the appropriate value in /etc/sudoers
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      regexp: ^[\s]*Defaults\s(.*)\btimestamp_timeout[\s]*=[\s]*[-]?\w+\b(.*)$
+      line: Defaults \1timestamp_timeout={{ var_sudo_timestamp_timeout }}\2
+      validate: /usr/sbin/visudo -cf %s
+      backrefs: true
+    register: edit_sudoers_timestamp_timeout_option
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"sudo" in ansible_facts.packages'
+    tags:
+    - DISA-STIG-RHEL-09-432015
+    - NIST-800-53-IA-11
+    - PCI-DSSv4-2.2
+    - PCI-DSSv4-2.2.6
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+    - sudo_require_reauthentication
+  rescue:
+  - name: 'StigForge: continue after error in ''Require Re-Authentication When Using the sudo Command - Ensure timestamp_timeout
+      has the appropriate value in /etc/sudoers'' (OpenSCAP is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: ''Require Re-Authentication When Using the sudo Command - Ensure timestamp_timeout has the appropriate
+        value in /etc/sudoers'' raised an error (module or templating) and was skipped; continuing so later rules still run.
+        OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_require_reauthentication | default(true) | bool)
+- block:
+  - name: Require Re-Authentication When Using the sudo Command - Enable timestamp_timeout option with correct value in /etc/sudoers
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      line: Defaults timestamp_timeout={{ var_sudo_timestamp_timeout }}
+      validate: /usr/sbin/visudo -cf %s
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"sudo" in ansible_facts.packages'
+    - 'edit_sudoers_timestamp_timeout_option is defined and not edit_sudoers_timestamp_timeout_option.changed
+
+      '
+    tags:
+    - DISA-STIG-RHEL-09-432015
+    - NIST-800-53-IA-11
+    - PCI-DSSv4-2.2
+    - PCI-DSSv4-2.2.6
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+    - sudo_require_reauthentication
+  rescue:
+  - name: 'StigForge: continue after error in ''Require Re-Authentication When Using the sudo Command - Enable timestamp_timeout
+      option with correct value in /etc/sudoers'' (OpenSCAP is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: ''Require Re-Authentication When Using the sudo Command - Enable timestamp_timeout option with correct
+        value in /etc/sudoers'' raised an error (module or templating) and was skipped; continuing so later rules still run.
+        OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_require_reauthentication | default(true) | bool)
+- block:
+  - name: Require Re-Authentication When Using the sudo Command - Remove timestamp_timeout wrong values in /etc/sudoers
+    ansible.builtin.lineinfile:
+      path: /etc/sudoers
+      regexp: ^[\s]*Defaults\s.*\btimestamp_timeout[\s]*=[\s]*(?!{{ var_sudo_timestamp_timeout }}\b)[-]?\w+\b.*$
+      state: absent
+      validate: /usr/sbin/visudo -cf %s
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"sudo" in ansible_facts.packages'
+    tags:
+    - DISA-STIG-RHEL-09-432015
+    - NIST-800-53-IA-11
+    - PCI-DSSv4-2.2
+    - PCI-DSSv4-2.2.6
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+    - sudo_require_reauthentication
+  rescue:
+  - name: 'StigForge: continue after error in ''Require Re-Authentication When Using the sudo Command - Remove timestamp_timeout
+      wrong values in /etc/sudoers'' (OpenSCAP is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: ''Require Re-Authentication When Using the sudo Command - Remove timestamp_timeout wrong values in
+        /etc/sudoers'' raised an error (module or templating) and was skipped; continuing so later rules still run. OpenSCAP
+        evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_sudo_require_reauthentication | default(true) | bool)
 - block:
   - name: Ensure GPG check is globally activated
     community.general.ini_file:
@@ -4398,7 +4554,7 @@
     ansible.builtin.lineinfile:
       path: /etc/security/pwhistory.conf
       create: true
-      regexp: ''
+      regexp: ^\s*enforce_for_root\s*$
       line: enforce_for_root
       state: present
     when:
@@ -7584,6 +7740,37 @@
         is set accordingly'' raised an error (module or templating) and was skipped; continuing so later rules still run.
         OpenSCAP evaluates the resulting system state independently.'
   when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_accounts_password_pam_difok | default(true) | bool)
+- block:
+  - name: Ensure PAM Enforces Password Requirements - Enforce for root User
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      create: true
+      regexp: ^\s*enforce_for_root\s*$
+      line: enforce_for_root
+      state: present
+    when:
+    - '"kernel-core" in ansible_facts.packages'
+    - '"libpwquality" in ansible_facts.packages'
+    tags:
+    - DISA-STIG-RHEL-09-611060
+    - NIST-800-53-CM-6(a)
+    - NIST-800-53-IA-5(1)(a)
+    - NIST-800-53-IA-5(4)
+    - NIST-800-53-IA-5(c)
+    - accounts_password_pam_enforce_root
+    - low_complexity
+    - low_disruption
+    - medium_severity
+    - no_reboot_needed
+    - restrict_strategy
+  rescue:
+  - name: 'StigForge: continue after error in ''Ensure PAM Enforces Password Requirements - Enforce for root User'' (OpenSCAP
+      is the score gate)'
+    ansible.builtin.debug:
+      msg: 'StigForge: ''Ensure PAM Enforces Password Requirements - Enforce for root User'' raised an error (module or templating)
+        and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_accounts_password_pam_enforce_root | default(true) |
+    bool)
 - block:
   - name: Set Password Maximum Consecutive Repeating Characters - Find pwquality.conf.d files
     ansible.builtin.find:
@@ -12707,6 +12894,8 @@
       msg: 'StigForge: ''Disable systemd-journal-remote Socket - Collect systemd Socket Units Present in the System'' raised
         an error (module or templating) and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting
         system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_socket_systemd_journal_remote_disabled | default(true)
+    | bool)
 - block:
   - name: Disable systemd-journal-remote Socket - Ensure systemd-journal-remote.socket is Masked
     ansible.builtin.systemd:
@@ -12731,6 +12920,8 @@
       msg: 'StigForge: ''Disable systemd-journal-remote Socket - Ensure systemd-journal-remote.socket is Masked'' raised an
         error (module or templating) and was skipped; continuing so later rules still run. OpenSCAP evaluates the resulting
         system state independently.'
+  when: (stigforge_rules_enabled | default(true) | bool) and (cs9cis_socket_systemd_journal_remote_disabled | default(true)
+    | bool)
 - block:
   - name: Configure Firewalld to Restrict Loopback Traffic - Remediation is Applicable if firewalld Service is Running
     block:
@@ -26027,7 +26218,6 @@
     ansible.builtin.getent:
       database: group
       key: ssh_keys
-    ignore_errors: true
     when:
     - '"kernel-core" in ansible_facts.packages'
     - file_groupownership_sshd_private_key_newgroup is undefined
@@ -26038,6 +26228,7 @@
     - low_disruption
     - medium_severity
     - no_reboot_needed
+    failed_when: false
   rescue:
   - name: 'StigForge: continue after error in ''Check that the ssh_keys group is defined'' (OpenSCAP is the score gate)'
     ansible.builtin.debug:
@@ -26625,6 +26816,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "ClientAliveCountMax"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -26726,6 +26918,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "ClientAliveCountMax"| regex_escape }}\s+{{ var_sshd_set_keepalive }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -26801,6 +26994,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "ClientAliveCountMax"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -26901,6 +27095,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "ClientAliveInterval"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -27008,6 +27203,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "ClientAliveInterval"| regex_escape }}\s+{{ sshd_idle_timeout_value }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -27087,6 +27283,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "ClientAliveInterval"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -27191,6 +27388,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "HostbasedAuthentication"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -27290,6 +27488,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "HostbasedAuthentication"| regex_escape }}\s+no$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -27363,6 +27562,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "HostbasedAuthentication"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -27461,6 +27661,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitEmptyPasswords"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -27564,6 +27765,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitEmptyPasswords"| regex_escape }}\s+no$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -27640,6 +27842,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "PermitEmptyPasswords"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -27740,6 +27943,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "DisableForwarding"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -27808,6 +28012,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "DisableForwarding"| regex_escape }}\s+yes$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -27861,6 +28066,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "DisableForwarding"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -27939,6 +28145,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "GSSAPIAuthentication"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -28025,6 +28232,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "GSSAPIAuthentication"| regex_escape }}\s+no$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -28090,6 +28298,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "GSSAPIAuthentication"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -28180,6 +28389,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "IgnoreRhosts"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -28276,6 +28486,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "IgnoreRhosts"| regex_escape }}\s+yes$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -28347,6 +28558,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "IgnoreRhosts"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -28443,6 +28655,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitRootLogin"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -28553,6 +28766,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitRootLogin"| regex_escape }}\s+no$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -28634,6 +28848,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "PermitRootLogin"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -28740,6 +28955,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitUserEnvironment"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -28839,6 +29055,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "PermitUserEnvironment"| regex_escape }}\s+no$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -28912,6 +29129,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "PermitUserEnvironment"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -29010,6 +29228,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "UsePAM"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -29087,6 +29306,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "UsePAM"| regex_escape }}\s+yes$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -29146,6 +29366,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "UsePAM"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -29230,6 +29451,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "Banner"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -29316,6 +29538,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "Banner"| regex_escape }}\s+/etc/issue.net$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -29381,6 +29604,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "Banner"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -29471,6 +29695,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "LoginGraceTime"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -29546,6 +29771,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "LoginGraceTime"| regex_escape }}\s+{{ var_sshd_set_login_grace_time }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -29603,6 +29829,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "LoginGraceTime"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -29685,6 +29912,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "LogLevel"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -29775,6 +30003,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "LogLevel"| regex_escape }}\s+VERBOSE$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -29842,6 +30071,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "LogLevel"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -29934,6 +30164,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxAuthTries"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -30009,6 +30240,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxAuthTries"| regex_escape }}\s+{{ sshd_max_auth_tries_value }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -30066,6 +30298,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "MaxAuthTries"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -30148,6 +30381,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxSessions"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -30222,6 +30456,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxSessions"| regex_escape }}\s+{{ var_sshd_max_sessions }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -30279,6 +30514,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "MaxSessions"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
@@ -30361,6 +30597,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxStartups"| regex_escape }}\s+
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_has_parameter
@@ -30436,6 +30673,7 @@
       path: /etc/ssh/sshd_config
       regexp: (?i)^\s*{{ "MaxStartups"| regex_escape }}\s+{{ var_sshd_set_maxstartups }}$
       state: absent
+      validate: /usr/sbin/sshd -t -f %s
     check_mode: true
     changed_when: false
     register: _config_file_correctly
@@ -30493,6 +30731,7 @@
         create: false
         regexp: (?i)(?i)^\s*{{ "MaxStartups"| regex_escape }}\s+
         state: absent
+        validate: /usr/sbin/sshd -t -f %s
     - name: Check if /etc/ssh/sshd_config.d exists
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config.d
